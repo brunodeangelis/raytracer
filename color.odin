@@ -6,9 +6,22 @@ import "core:strings"
 
 Color :: Vec3
 
-write_color :: proc(sb: ^strings.Builder, px_color: Color) {
-	ir := i32(255 * px_color.r)
-	ig := i32(255 * px_color.g)
-	ib := i32(255 * px_color.b)
-	fmt.sbprintf(sb, "%v %v %v\n", ir, ig, ib)
+write_color :: proc(sb: ^strings.Builder, pixel_color: Color, samples_per_pixel: u32) {
+	r := pixel_color.r
+	g := pixel_color.g
+	b := pixel_color.b
+
+	// Divide the color by the number of samples.
+	scale := 1.0 / f64(samples_per_pixel)
+	r *= scale
+	g *= scale
+	b *= scale
+
+	// Write the translated [0,255] value of each color component.
+	intensity := Interval{0.000, 0.999}
+	out_r := int(256 * interval_clamp(intensity, r))
+	out_g := int(256 * interval_clamp(intensity, g))
+	out_b := int(256 * interval_clamp(intensity, b))
+
+	fmt.sbprintf(sb, "%v %v %v\n", out_r, out_g, out_b)
 }

@@ -2,13 +2,15 @@ package main
 
 import "core:fmt"
 import "core:math/linalg"
+import "core:math/rand"
 import "core:os"
 import "core:strings"
 
 
 Camera :: struct {
-	aspect_ratio: f64,
-	image_width:  f64,
+	aspect_ratio:      f64,
+	image_width:       int,
+	samples_per_pixel: u32,
 }
 
 @(private = "file")
@@ -33,17 +35,15 @@ camera_render :: proc(cam: Camera, world: Hittable) {
 	fmt.sbprintf(&sb, "P3\n%v %v\n255\n", cam.image_width, image_height)
 
 	for j in 0 ..< image_height {
-		fmt.printf("\rScanlines remaining: %v", image_height - j)
+		fmt.printf("\rScanlines remaining: %v ", image_height - j)
 		for i in 0 ..< cam.image_width {
-			pixel_center := pixel00_loc + (f64(i) * pixel_delta_u) + (f64(j) * pixel_delta_v)
-			ray_direction := pixel_center - center
-			r := Ray {
-				orig = center,
-				dir  = ray_direction,
+			pixel_color := Color{}
+			for sample in 0 ..< cam.samples_per_pixel {
+				r := get_ray(i, j)
+				pixel_color += ray_color(r, world)
 			}
 
-			pixel_color := ray_color(r, world)
-			write_color(&sb, pixel_color)
+			write_color(&sb, pixel_color, cam.samples_per_pixel)
 		}
 	}
 
@@ -75,6 +75,26 @@ initialize :: proc(cam: Camera) {
 	center = {0, 0, 0}
 	viewport_upper_left := center - {0, 0, focal_length} - viewport_u / 2 - viewport_v / 2
 	pixel00_loc = viewport_upper_left + 0.5 * (pixel_delta_u + pixel_delta_v)
+}
+
+@(private = "file")
+get_ray :: proc(i, j: int) -> Ray {
+	// Get a randomly sampled camera ray for the pixel at location i,j.
+	pixel_center := pixel00_loc + (f64(i) * pixel_delta_u) + (f64(j) * pixel_delta_v)
+	pixel_sample := pixel_center + pixel_sample_square()
+
+	ray_origin := center
+	ray_direction := pixel_sample - ray_origin
+
+	return Ray{ray_origin, ray_direction}
+}
+
+@(private = "file")
+pixel_sample_square :: proc() -> Vec3 {
+	// Returns a random point in the square surrounding a pixel at the origin.
+	px := -0.5 + rand.float64()
+	py := -0.5 + rand.float64()
+	return (px * pixel_delta_u) + (py * pixel_delta_v)
 }
 
 @(private = "file")

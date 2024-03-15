@@ -10,8 +10,9 @@ main :: proc() {
 	append(&world.objects, Sphere{{0, -100.5, -1}, 100})
 
 	cam := Camera {
-		aspect_ratio = 16.0 / 9.0,
-		image_width  = 400,
+		aspect_ratio      = 16.0 / 9.0,
+		image_width       = 400,
+		samples_per_pixel = 100,
 	}
 
 	camera_render(cam, world)

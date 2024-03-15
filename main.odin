@@ -1,6 +1,7 @@
 package main
 
 import "core:fmt"
+import "core:math"
 import "core:math/linalg"
 import "core:math/linalg/glsl"
 import "core:os"
@@ -8,12 +9,36 @@ import "core:strings"
 
 import stbi "vendor:stb/image"
 
+INFINITY :: math.INF_F64
+PI :: math.PI
+
 Vec3 :: linalg.Vector3f64
 Point3 :: Vec3
 Color :: Vec3
 Ray :: struct {
 	orig: Point3,
 	dir:  Vec3,
+}
+
+Hit_Record :: struct {
+	p:          Point3,
+	normal:     Vec3,
+	t:          f64,
+	front_face: bool,
+}
+
+Sphere :: struct {
+	center: Point3,
+	radius: f64,
+}
+
+Hittable_List :: struct {
+	objects: [dynamic]Hittable,
+}
+
+Hittable :: union {
+	Sphere,
+	Hittable_List,
 }
 
 // Raytracing In One Weekend - Version 4.0.0-alpha.1, 2023-08-06
@@ -26,6 +51,12 @@ main :: proc() {
 	// Calculate the image height, and ensure that it's at least 1.
 	image_height := int(f64(image_width) / aspect_ratio)
 	image_height = (image_height < 1) ? 1 : image_height
+
+	// World
+
+	world := Hittable_List{}
+	append(&world.objects, Sphere{{0, 0, -1}, 0.5})
+	append(&world.objects, Sphere{{0, -100.5, -1}, 100})
 
 	// Camera
 
@@ -60,7 +91,7 @@ main :: proc() {
 				dir  = ray_direction,
 			}
 
-			pixel_color := ray_color(r)
+			pixel_color := ray_color(r, world)
 			write_color(&sb, pixel_color)
 		}
 	}
@@ -81,24 +112,76 @@ ray_at :: proc(r: Ray, t: f64) -> Point3 {
 	return r.orig + t * r.dir
 }
 
-hit_sphere :: proc(center: Point3, radius: f64, r: Ray) -> bool {
-	oc := r.orig - center
-	a := linalg.dot(r.dir, r.dir)
-	b := 2.0 * linalg.dot(oc, r.dir)
-	c := linalg.dot(oc, oc) - radius * radius
-	discriminant := b * b - 4 * a * c
-	return discriminant >= 0
+hit :: proc(h: Hittable, r: Ray, ray_t: Interval, rec: ^Hit_Record) -> bool {
+	#partial switch type in h {
+	case Sphere:
+		h := h.(Sphere)
+
+		oc := r.orig - h.center
+		a := linalg.length2(r.dir) // same as dot(dir, dir)
+		half_b := linalg.dot(oc, r.dir)
+		c := linalg.length2(oc) - h.radius * h.radius
+
+		discriminant := half_b * half_b - a * c
+		if discriminant < 0 do return false
+		sqrtd := linalg.sqrt(discriminant)
+
+		// Find the nearest root that lies in the acceptable range.
+		root := (-half_b - sqrtd) / a
+		if !interval_surrounds(ray_t, root) {
+			root = (-half_b + sqrtd) / a
+			if !interval_surrounds(ray_t, root) do return false
+		}
+
+		rec.t = root
+		rec.p = ray_at(r, rec.t)
+		outward_normal := (rec.p - h.center) / h.radius
+		set_face_normal(rec, r, outward_normal)
+
+		return true
+
+	case Hittable_List:
+		h := h.(Hittable_List)
+
+		temp_rec := Hit_Record{}
+		hit_anything := false
+		closest_so_far := ray_t.max
+
+		for object in h.objects {
+			if hit(object, r, {ray_t.min, closest_so_far}, &temp_rec) {
+				hit_anything = true
+				closest_so_far = temp_rec.t
+
+				rec.p = temp_rec.p
+				rec.normal = temp_rec.normal
+				rec.front_face = temp_rec.front_face
+				rec.t = temp_rec.t
+			}
+		}
+
+		return hit_anything
+	}
+
+	return false
 }
 
-ray_color :: proc(r: Ray) -> Color {
-	if hit_sphere({0, 0, -1}, 0.5, r) {
-		return {1, 0, 0}
+// Sets the hit record normal vector.
+// NOTE: the parameter `outward_normal` is assumed to have unit length.
+set_face_normal :: proc(rec: ^Hit_Record, r: Ray, outward_normal: Vec3) {
+	rec.front_face = linalg.dot(r.dir, outward_normal) < 0
+	rec.normal = rec.front_face ? outward_normal : -outward_normal
+}
+
+ray_color :: proc(r: Ray, world: Hittable) -> Color {
+	rec := Hit_Record{}
+	if hit(world, r, {0, INFINITY}, &rec) {
+		return 0.5 * (rec.normal + {1, 1, 1})
 	}
 
 	// unit_vector() is equal to normalize()
 	unit_direction := linalg.vector_normalize(r.dir)
 	blue := Color{0.5, 0.7, 1.0}
 	white := Color{1.0, 1.0, 1.0}
-	t := 0.5 * (unit_direction.y + 1.0)
-	return linalg.lerp(white, blue, t)
+	lerp_t := 0.5 * (unit_direction.y + 1.0)
+	return linalg.lerp(white, blue, lerp_t)
 }

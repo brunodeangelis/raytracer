@@ -8,9 +8,10 @@ import "core:strings"
 
 
 Camera :: struct {
-	aspect_ratio:      f64,
-	image_width:       int,
-	samples_per_pixel: u32,
+	aspect_ratio:      f64, // Ratio of image width over height
+	image_width:       int, // Rendered image width in pixel count
+	samples_per_pixel: int, // Count of random samples for each pixel
+	max_depth:         int, // Maximum number of ray bounces into scene
 }
 
 @(private = "file")
@@ -40,14 +41,14 @@ camera_render :: proc(cam: Camera, world: Hittable) {
 			pixel_color := Color{}
 			for sample in 0 ..< cam.samples_per_pixel {
 				r := get_ray(i, j)
-				pixel_color += ray_color(r, world)
+				pixel_color += ray_color(r, cam.max_depth, world)
 			}
 
 			write_color(&sb, pixel_color, cam.samples_per_pixel)
 		}
 	}
 
-	os.write_entire_file("image.ppm", sb.buf[:])
+	os.write_entire_file("render.ppm", sb.buf[:])
 
 	fmt.printf("\rDone.                    \n")
 }
@@ -98,14 +99,18 @@ pixel_sample_square :: proc() -> Vec3 {
 }
 
 @(private = "file")
-ray_color :: proc(r: Ray, world: Hittable) -> Color {
+ray_color :: proc(r: Ray, depth: int, world: Hittable) -> Color {
 	rec := Hit_Record{}
-	if hit(world, r, {0, INFINITY}, &rec) {
-		return 0.5 * (rec.normal + {1, 1, 1})
+
+	if depth <= 0 do return {0, 0, 0}
+
+	if hit(world, r, {0.001, INFINITY}, &rec) {
+		direction := rec.normal + random_unit_vector()
+		return 0.5 * ray_color({rec.p, direction}, depth - 1, world)
 	}
 
 	// unit_vector() is equal to normalize()
-	unit_direction := linalg.vector_normalize(r.dir)
+	unit_direction := linalg.normalize(r.dir)
 	blue := Color{0.5, 0.7, 1.0}
 	white := Color{1.0, 1.0, 1.0}
 	lerp_t := 0.5 * (unit_direction.y + 1.0)

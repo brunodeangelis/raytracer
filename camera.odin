@@ -12,22 +12,29 @@ Camera :: struct {
 	image_width:       int, // Rendered image width in pixel count
 	samples_per_pixel: int, // Count of random samples for each pixel
 	max_depth:         int, // Maximum number of ray bounces into scene
+	vfov:              f64, // Vertical Field of View
+	look_from:         Point3, // Point camera is looking from
+	look_at:           Point3, // Point camera is looking at
+	vup:               Vec3, // Camera-relative "up" direction
 }
 
 @(private = "file")
-image_height: int
+image_height: int // Rendered image height
 
 @(private = "file")
-center: Point3
+center: Point3 // Camera center
 
 @(private = "file")
-pixel00_loc: Point3
+pixel00_loc: Point3 // Location of pixel 0,0
 
 @(private = "file")
-pixel_delta_u: Vec3
+pixel_delta_u: Vec3 // Offset to pixel to the right
 
 @(private = "file")
-pixel_delta_v: Vec3
+pixel_delta_v: Vec3 // Offset to pixel below
+
+@(private = "file")
+u, v, w: Vec3 // Camera frame basis vectors
 
 camera_render :: proc(cam: Camera, world: Hittable) {
 	initialize(cam)
@@ -59,22 +66,29 @@ initialize :: proc(cam: Camera) {
 	image_height = (image_height < 1) ? 1 : image_height
 
 	// Determine viewport dimensions.
-	focal_length := 1.0
-	viewport_height := 2.0
+	focal_length := linalg.length(cam.look_from - cam.look_at)
+	theta := linalg.to_radians(cam.vfov)
+	h := linalg.tan(theta / 2)
+	viewport_height := 2 * h * focal_length
 	viewport_width := viewport_height * (f64(cam.image_width) / f64(image_height))
+
+	// Calculate the u,v,w unit basis vectors for the camera coordinate frame.
+	w := linalg.normalize(cam.look_from - cam.look_at)
+	u := linalg.normalize(linalg.cross(cam.vup, w))
+	v := linalg.cross(w, u)
 
 	// Calculate the vectors across the horizontal and down the vertical viewport edges.
 	// https://raytracing.github.io/images/fig-1.04-pixel-grid.jpg
-	viewport_u := Vec3{viewport_width, 0, 0}
-	viewport_v := Vec3{0, -viewport_height, 0}
+	viewport_u := viewport_width * u // Vector across viewport horizontal edge
+	viewport_v := viewport_height * -v // Vector down viewport vertical edge
 
 	// Calculate the horizontal and vertical delta vectors from pixel to pixel.
 	pixel_delta_u = viewport_u / f64(cam.image_width)
 	pixel_delta_v = viewport_v / f64(image_height)
 
 	// Calculate the location of the upper left pixel.
-	center = {0, 0, 0}
-	viewport_upper_left := center - {0, 0, focal_length} - viewport_u / 2 - viewport_v / 2
+	center = cam.look_from
+	viewport_upper_left := center - (focal_length * w) - viewport_u / 2 - viewport_v / 2
 	pixel00_loc = viewport_upper_left + 0.5 * (pixel_delta_u + pixel_delta_v)
 }
 

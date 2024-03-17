@@ -41,6 +41,13 @@ random_vec3_on_hemisphere :: proc(normal: Vec3) -> Vec3 {
 	}
 }
 
+random_vec3_in_unit_disk :: proc() -> Vec3 {
+	for {
+		p := Vec3{rand.float64_range(-1, 1), rand.float64_range(-1, 1), 0}
+		if linalg.length2(p) < 1 do return p
+	}
+}
+
 is_near_zero_vec3 :: proc(vec: Vec3) -> bool {
 	nz := 1e-8 // 0.00000001
 	return abs(vec.x) < nz && abs(vec.y) < nz && abs(vec.z) < nz

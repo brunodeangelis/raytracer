@@ -40,6 +40,8 @@ main :: proc() {
 		look_from         = {-2, 2, 1},
 		look_at           = {0, 0, -1},
 		vup               = {0, 1, 0},
+		defocus_angle     = 10,
+		focus_dist        = 3.4,
 	}
 
 	camera_render(cam, world)

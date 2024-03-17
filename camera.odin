@@ -102,11 +102,16 @@ pixel_sample_square :: proc() -> Vec3 {
 ray_color :: proc(r: Ray, depth: int, world: Hittable) -> Color {
 	rec := Hit_Record{}
 
+	// If we've exceeded the ray bounce limit, no more light is gathered.
 	if depth <= 0 do return {0, 0, 0}
 
 	if hit(world, r, {0.001, INFINITY}, &rec) {
-		direction := rec.normal + random_unit_vector()
-		return 0.5 * ray_color({rec.p, direction}, depth - 1, world)
+		scattered: Ray
+		attenuation: Color
+		if material_scatter(rec.mat, r, rec, &attenuation, &scattered) {
+			return attenuation * ray_color(scattered, depth - 1, world)
+		}
+		return Color{0, 0, 0}
 	}
 
 	// unit_vector() is equal to normalize()

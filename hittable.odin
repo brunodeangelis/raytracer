@@ -6,13 +6,15 @@ import "core:math/linalg"
 Hit_Record :: struct {
 	p:          Point3,
 	normal:     Vec3,
+	mat:        ^Material,
 	t:          f64,
 	front_face: bool,
 }
 
 Sphere :: struct {
-	center: Point3,
-	radius: f64,
+	center:   Point3,
+	radius:   f64,
+	material: ^Material,
 }
 
 Hittable_List :: struct {
@@ -25,7 +27,7 @@ Hittable :: union {
 }
 
 hit :: proc(h: Hittable, r: Ray, ray_t: Interval, rec: ^Hit_Record) -> bool {
-	#partial switch type in h {
+	switch type in h {
 	case Sphere:
 		h := h.(Sphere)
 
@@ -49,6 +51,7 @@ hit :: proc(h: Hittable, r: Ray, ray_t: Interval, rec: ^Hit_Record) -> bool {
 		rec.p = ray_at(r, rec.t)
 		outward_normal := (rec.p - h.center) / h.radius
 		set_face_normal(rec, r, outward_normal)
+		rec.mat = h.material
 
 		return true
 
@@ -63,11 +66,7 @@ hit :: proc(h: Hittable, r: Ray, ray_t: Interval, rec: ^Hit_Record) -> bool {
 			if hit(object, r, {ray_t.min, closest_so_far}, &temp_rec) {
 				hit_anything = true
 				closest_so_far = temp_rec.t
-
-				rec.p = temp_rec.p
-				rec.normal = temp_rec.normal
-				rec.front_face = temp_rec.front_face
-				rec.t = temp_rec.t
+				rec^ = temp_rec
 			}
 		}
 

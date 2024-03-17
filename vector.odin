@@ -40,3 +40,12 @@ random_vec3_on_hemisphere :: proc(normal: Vec3) -> Vec3 {
 		return -on_unit_sphere
 	}
 }
+
+is_near_zero_vec3 :: proc(vec: Vec3) -> bool {
+	nz := 1e-8 // 0.00000001
+	return abs(vec.x) < nz && abs(vec.y) < nz && abs(vec.z) < nz
+}
+
+is_near_zero :: proc {
+	is_near_zero_vec3,
+}

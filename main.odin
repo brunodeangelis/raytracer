@@ -68,11 +68,23 @@ main :: proc() {
 	}
 	append(&world.objects, Sphere{{4, 1, 0}, 1, &material3})
 
+
+	image_width, samples_per_pixel, max_depth: int
+	when ODIN_DEBUG {
+		image_width = 200
+		samples_per_pixel = 4
+		max_depth = 4
+	} else {
+		image_width = 1200
+		samples_per_pixel = 500
+		max_depth = 50
+	}
+
 	cam := Camera {
 		aspect_ratio      = 16.0 / 9.0,
-		image_width       = 1200,
-		samples_per_pixel = 500,
-		max_depth         = 50,
+		image_width       = image_width,
+		samples_per_pixel = samples_per_pixel,
+		max_depth         = max_depth,
 		vfov              = 20,
 		look_from         = {13, 2, 3},
 		look_at           = {0, 0, 0},

@@ -6,6 +6,8 @@ import "core:math/rand"
 import "core:os"
 import "core:strings"
 
+import stbi "vendor:stb/image"
+
 
 Camera :: struct {
 	aspect_ratio:      f64, // Ratio of image width over height
@@ -47,23 +49,21 @@ defocus_disk_v: Vec3 // Defocus disk vertical radius
 camera_render :: proc(cam: Camera, world: Hittable) {
 	initialize(cam)
 
-	sb := strings.builder_make_none()
-	fmt.sbprintf(&sb, "P3\n%v %v\n255\n", cam.image_width, image_height)
+	buffer := make([]byte, cam.image_width * image_height * 3)
 
-	for j in 0 ..< image_height {
-		fmt.printf("\rScanlines remaining: %v ", image_height - j)
-		for i in 0 ..< cam.image_width {
+	for y in 0 ..< image_height {
+		fmt.printf("\rScanlines remaining: %v ", image_height - y)
+		for x in 0 ..< cam.image_width {
 			pixel_color := Color{}
 			for sample in 0 ..< cam.samples_per_pixel {
-				r := get_ray(cam, i, j)
+				r := get_ray(cam, x, y)
 				pixel_color += ray_color(r, cam.max_depth, world)
 			}
-
-			write_color(&sb, pixel_color, cam.samples_per_pixel)
+			write_color(pixel_color, buffer, x, y, cam.image_width, cam.samples_per_pixel)
 		}
 	}
 
-	os.write_entire_file("render.ppm", sb.buf[:])
+	stbi.write_png("render.png", i32(cam.image_width), i32(image_height), 3, raw_data(buffer), 0)
 
 	fmt.printf("\rDone.                    \n")
 }
@@ -105,10 +105,10 @@ initialize :: proc(cam: Camera) {
 }
 
 @(private = "file")
-get_ray :: proc(cam: Camera, i, j: int) -> Ray {
-	// Get a randomly sampled camera ray for the pixel at location i,j, originating from
-	// the camerea defocus disk.
-	pixel_center := pixel00_loc + (f64(i) * pixel_delta_u) + (f64(j) * pixel_delta_v)
+get_ray :: proc(cam: Camera, x, y: int) -> Ray {
+	// Get a randomly sampled camera ray for the pixel at location x,y, originating from
+	// the camera defocus disk.
+	pixel_center := pixel00_loc + (f64(x) * pixel_delta_u) + (f64(y) * pixel_delta_v)
 	pixel_sample := pixel_center + pixel_sample_square()
 
 	ray_origin := (cam.defocus_angle <= 0) ? center : defocus_disk_sample()

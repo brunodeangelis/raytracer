@@ -7,7 +7,7 @@ import "core:strings"
 
 Color :: Vec3
 
-write_color :: proc(sb: ^strings.Builder, pixel_color: Color, samples_per_pixel: int) {
+write_color :: proc(pixel_color: Color, buffer: []byte, x, y, width, samples_per_pixel: int) {
 	r := pixel_color.r
 	g := pixel_color.g
 	b := pixel_color.b
@@ -28,7 +28,10 @@ write_color :: proc(sb: ^strings.Builder, pixel_color: Color, samples_per_pixel:
 	out_g := int(256 * interval_clamp(intensity, g))
 	out_b := int(256 * interval_clamp(intensity, b))
 
-	fmt.sbprintf(sb, "%v %v %v\n", out_r, out_g, out_b)
+	pixel_idx := (x + y * width) * 3
+	buffer[pixel_idx + 0] = byte(out_r)
+	buffer[pixel_idx + 1] = byte(out_g)
+	buffer[pixel_idx + 2] = byte(out_b)
 }
 
 linear_to_gamma :: proc(linear_component: f64) -> f64 {

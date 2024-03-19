@@ -5,8 +5,7 @@ import "core:math/linalg"
 import "core:math/rand"
 import "core:os"
 import "core:strings"
-
-import stbi "vendor:stb/image"
+import "core:sync"
 
 
 Camera :: struct {
@@ -22,7 +21,6 @@ Camera :: struct {
 	focus_dist:        f64, // Distance from camera look_from point to plane of perfect focus
 }
 
-@(private = "file")
 image_height: int // Rendered image height
 
 @(private = "file")
@@ -46,30 +44,31 @@ defocus_disk_u: Vec3 // Defocus disk horizontal radius
 @(private = "file")
 defocus_disk_v: Vec3 // Defocus disk vertical radius
 
-camera_render :: proc(cam: Camera, world: Hittable) {
-	initialize(cam)
+render :: proc(pixels: [^]byte, world: ^Hittable_List, cam: ^Camera) {
+	for {
+		current_pixel := sync.atomic_add(&pixel_index, 1)
+		if current_pixel >= cam.image_width * image_height do return
 
-	buffer := make([]byte, cam.image_width * image_height * 3)
+		fmt.printf("\rPixels Remaining: %v", cam.image_width * image_height - current_pixel)
 
-	for y in 0 ..< image_height {
-		fmt.printf("\rScanlines remaining: %v ", image_height - y)
-		for x in 0 ..< cam.image_width {
-			pixel_color := Color{}
-			for sample in 0 ..< cam.samples_per_pixel {
-				r := get_ray(cam, x, y)
-				pixel_color += ray_color(r, cam.max_depth, world)
-			}
-			write_color(pixel_color, buffer, x, y, cam.image_width, cam.samples_per_pixel)
+		x := current_pixel % cam.image_width
+		y := current_pixel / cam.image_width
+
+		pixel_color: Color
+		for sample in 0 ..< cam.samples_per_pixel {
+			r := get_ray(cam, x, y)
+			pixel_color += ray_color(r, cam.max_depth, world^)
 		}
+
+		out_r, out_g, out_b := linear_to_byte(pixel_color / f64(cam.samples_per_pixel))
+		pixel_idx := (x + y * cam.image_width) * 3
+		pixels[pixel_idx + 0] = out_r
+		pixels[pixel_idx + 1] = out_g
+		pixels[pixel_idx + 2] = out_b
 	}
-
-	stbi.write_png("render.png", i32(cam.image_width), i32(image_height), 3, raw_data(buffer), 0)
-
-	fmt.printf("\rDone.                    \n")
 }
 
-@(private = "file")
-initialize :: proc(cam: Camera) {
+camera_initialize :: proc(cam: Camera) {
 	image_height = int(f64(cam.image_width) / cam.aspect_ratio)
 	image_height = (image_height < 1) ? 1 : image_height
 
@@ -105,7 +104,7 @@ initialize :: proc(cam: Camera) {
 }
 
 @(private = "file")
-get_ray :: proc(cam: Camera, x, y: int) -> Ray {
+get_ray :: proc(cam: ^Camera, x, y: int) -> Ray {
 	// Get a randomly sampled camera ray for the pixel at location x,y, originating from
 	// the camera defocus disk.
 	pixel_center := pixel00_loc + (f64(x) * pixel_delta_u) + (f64(y) * pixel_delta_v)

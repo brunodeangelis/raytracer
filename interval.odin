@@ -1,5 +1,9 @@
 package main
 
+import "core:math"
+
+
+INFINITY :: math.INF_F64
 
 Interval :: struct {
 	min, max: f64,

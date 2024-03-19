@@ -1,10 +1,19 @@
 package main
 
+import "core:fmt"
 import "core:math/linalg"
 import "core:math/rand"
+import "core:sync"
+import "core:thread"
+import "core:time"
+
+import stbi "vendor:stb/image"
+
 
 // Raytracing In One Weekend - Version 4.0.0-alpha.1, 2023-08-06
 // https://raytracing.github.io/books/RayTracingInOneWeekend.html
+
+pixel_index: int = 0
 
 main :: proc() {
 	world := Hittable_List{}
@@ -71,9 +80,9 @@ main :: proc() {
 
 	image_width, samples_per_pixel, max_depth: int
 	when ODIN_DEBUG {
-		image_width = 200
-		samples_per_pixel = 4
-		max_depth = 4
+		image_width = 300
+		samples_per_pixel = 20
+		max_depth = 10
 	} else {
 		image_width = 1200
 		samples_per_pixel = 500
@@ -93,5 +102,22 @@ main :: proc() {
 		focus_dist        = 10,
 	}
 
-	camera_render(cam, world)
+	camera_initialize(cam)
+
+	start := time.now()
+
+	pixels := make([]byte, cam.image_width * image_height * 3)
+
+	NUM_THREADS :: 10
+	threads := make([]^thread.Thread, NUM_THREADS)
+	for t, i in threads {
+		threads[i] = thread.create_and_start_with_poly_data3(raw_data(pixels), &world, &cam, render)
+	}
+	thread.join_multiple(..threads[:])
+
+	fmt.printfln("\nRENDER TIME: %v", time.diff(start, time.now()))
+
+	out_filename := "render.png"
+	stbi.write_png(fmt.ctprintf(out_filename), i32(cam.image_width), i32(image_height), 3, raw_data(pixels), 0)
+	fmt.printfln("Written '%v'", out_filename)
 }

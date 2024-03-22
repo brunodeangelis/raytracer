@@ -10,8 +10,8 @@ import "core:time"
 import stbi "vendor:stb/image"
 
 
-// Raytracing In One Weekend - Version 4.0.0-alpha.1, 2023-08-06
-// https://raytracing.github.io/books/RayTracingInOneWeekend.html
+// Ray Tracing: The Next Week - Version 4.0.0-alpha.1, 2023-08-06
+// https://raytracing.github.io/books/RayTracingTheNextWeek.html
 
 pixel_index: int = 0
 

@@ -22,7 +22,8 @@ main :: proc() {
 		type   = .LAMBERTIAN,
 		albedo = {0.5, 0.5, 0.5},
 	}
-	append(&world.objects, Sphere{{0, -1000, 0}, 1000, &material_ground})
+	ground := hittable_make(Sphere{{0, -1000, 0}, 1000, &material_ground, {}})
+	hittable_list_add(&world, ground)
 
 	for a in -11 ..< 11 {
 		for b in -11 ..< 11 {
@@ -53,7 +54,8 @@ main :: proc() {
 					}
 				}
 
-				append(&world.objects, Sphere{center, 0.2, new_clone(sphere_material)})
+				sphere := hittable_make(Sphere{center, 0.2, new_clone(sphere_material), {}})
+				hittable_list_add(&world, sphere)
 			}
 		}
 	}
@@ -62,21 +64,23 @@ main :: proc() {
 		type = .DIELECTRIC,
 		ir   = 1.5,
 	}
-	append(&world.objects, Sphere{{0, 1, 0}, 1, &material1})
+	big_sphere_1 := hittable_make(Sphere{{0, 1, 0}, 1, &material1, {}})
+	hittable_list_add(&world, big_sphere_1)
 
 	material2 := Material {
 		type   = .LAMBERTIAN,
 		albedo = {0.4, 0.2, 0.1},
 	}
-	append(&world.objects, Sphere{{-4, 1, 0}, 1, &material2})
+	big_sphere_2 := hittable_make(Sphere{{-4, 1, 0}, 1, &material2, {}})
+	hittable_list_add(&world, big_sphere_2)
 
 	material3 := Material {
 		type   = .METAL,
 		albedo = {0.7, 0.6, 0.5},
 		fuzz   = 0,
 	}
-	append(&world.objects, Sphere{{4, 1, 0}, 1, &material3})
-
+	big_sphere_3 := hittable_make(Sphere{{4, 1, 0}, 1, &material3, {}})
+	hittable_list_add(&world, big_sphere_3)
 
 	image_width, samples_per_pixel, max_depth: int
 	when ODIN_DEBUG {

@@ -2,4 +2,4 @@ default:
 	odin run . -debug -out:.build/main
 
 prod:
-	odin run .
+	odin run . -out:.build/main

@@ -15,19 +15,43 @@ Sphere :: struct {
 	center:   Point3,
 	radius:   f64,
 	material: ^Material,
+	bbox:     AABB,
 }
 
 Hittable_List :: struct {
 	objects: [dynamic]Hittable,
+	bbox:    AABB,
 }
 
 Hittable :: union {
 	Sphere,
 	Hittable_List,
+	BVH_Node,
+}
+
+hittable_make :: proc(h: Hittable) -> Hittable {
+	#partial switch type in h {
+	case Sphere:
+		sphere := h.(Sphere)
+		rvec := Vec3(sphere.radius)
+		sphere.bbox = aabb_from_points(sphere.center - rvec, sphere.center + rvec)
+		return sphere
+	}
+	return {}
+}
+
+hittable_list_add :: proc(hl: ^Hittable_List, object: Hittable) {
+	append(&hl.objects, object)
+
+	#partial switch type in object {
+	case Sphere:
+		sphere := object.(Sphere)
+		hl.bbox = aabb_from_aabbs(hl.bbox, sphere.bbox)
+	}
 }
 
 hit :: proc(h: Hittable, r: Ray, ray_t: Interval, rec: ^Hit_Record) -> bool {
-	switch type in h {
+	#partial switch type in h {
 	case Sphere:
 		h := h.(Sphere)
 
